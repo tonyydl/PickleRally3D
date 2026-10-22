@@ -3,4 +3,16 @@
 Execution: inline, isolated new project directory with development branch. No worktree needed for a new independent repository. User explicitly requested direct implementation.
 Pre-flight: Task 2 consumes Flight/Actor from Task 1. Task 3 integrates Rules into Match without replacing Flight API. No conflicts.
 
-Task 1: in progress.
+Task 1: complete — flight tests PASS; court/actor/scene headless startup clean. Commit c6a0b76.
+Task 2: complete — AI integration tests observed failing then PASS; AI returned 62 shots over 70 simulated seconds; alternating wide volleys won after 5 shots.
+Task 3: implementation complete — rules tests observed failing then PASS. Full check_project.ps1 PASS: import, flight, rules, match, controls, startup. Final review pending.
+Ruling: implement pure Rules before AI orchestration so both player and AI share one legal hit path; avoids temporary duplicated rally state.
+
+Decisions:
+- Deterministic ballistic flight, enlarged ball visuals and generous human paddle reach; documented prototype choices.
+- AI has 0.24 second reaction time and 2.24 m/s chase speed; central rallies remain stable, wide volleys can win.
+- Kitchen momentum tracking lasts until next bounce; tape roll-over and body/paddle-contact referee cases are documented limitations.
+
+Visual QA: NVIDIA RTX 3080 OpenGL Compatibility real viewport PNGs inspected at .tools/visual/. Fixed anchor offsets, overlapping court layers, line placement and exposure. No final render warnings.
+Windows UI helper could not connect after prescribed recovery. Used actual engine renders and Godot input event dispatch tests; no OS-level manual playtest claimed.
+Control test timing investigation: buffered synthetic key events arrived after process_frame; Input.flush_buffered_events in test helper fixed ordering. Production input unchanged.

@@ -53,15 +53,15 @@ func _ready() -> void:
 	var cream := Color("ecedda")
 	var white := Color("f9ffef")
 	var dark := Color("24484e")
-	box(self, Vector3(0, -0.22, 0), Vector3(200, 0.3, 200), Color("bcd3b1"))
-	box(self, Vector3(0, -0.065, 0), Vector3(15, 0.16, 23), cream)
-	box(self, Vector3(0, -0.015, 0), Vector3(11.4, 0.1, 19.2), Color("79b7ad"))
+	box(self, Vector3(0, -0.4, 0), Vector3(200, 0.3, 200), Color("bcd3b1"))
+	box(self, Vector3(0, -0.14, 0), Vector3(15, 0.16, 23), cream)
+	box(self, Vector3(0, -0.055, 0), Vector3(11.4, 0.1, 19.2), Color("79b7ad"))
 	box(self, Vector3(0, 0.007, 0), Vector3(6.096, 0.045, 13.4112), Color("427fa7"))
 	box(self, Vector3(0, 0.034, 0), Vector3(6.096, 0.01, 4.2672), Color("4ea397"))
 	for x in [-HALF_WIDTH, HALF_WIDTH]:
 		box(self, Vector3(x - signf(x) * LINE / 2, 0.043, 0), Vector3(LINE, 0.012, HALF_LENGTH * 2), white)
 	for z in [-HALF_LENGTH, -KITCHEN, KITCHEN, HALF_LENGTH]:
-		var centre_z: float = z - signf(z) * LINE / 2 if absf(z) == HALF_LENGTH else z + signf(z) * LINE / 2
+		var centre_z: float = z - signf(z) * LINE / 2
 		box(self, Vector3(0, 0.043, centre_z), Vector3(HALF_WIDTH * 2, 0.012, LINE), white)
 	for side in [-1, 1]:
 		box(self, Vector3(0, 0.043, side * (HALF_LENGTH + KITCHEN) / 2), Vector3(LINE, 0.012, HALF_LENGTH - KITCHEN), white)
@@ -98,14 +98,14 @@ func _ready() -> void:
 	env.background_color = Color("c3dfe1")
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color("e1eff2")
-	env.ambient_light_energy = 0.75
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	env.ambient_light_energy = 0.35
+	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
 	environment.environment = env
 	add_child(environment)
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-53, -28, 0)
 	sun.light_color = Color("fff5dc")
-	sun.light_energy = 1.3
+	sun.light_energy = 0.8
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 45
 	add_child(sun)
