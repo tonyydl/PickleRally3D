@@ -91,14 +91,19 @@ func run() -> void:
 		game.simulate(1.0 / 120)
 	check(game.shot_count == 1 and game.rules.last_hitter == 0, "Buffered click must hit exactly once")
 	game.rules.score = [10, 0]
+	game.player.moving = true
+	game.player.swing()
 	game.rules.fault(1, "test")
 	game.finish_rally()
 	var final_position: Vector3 = game.flight.position
+	var final_clock: float = game.elapsed
 	game.simulate(1)
 	check(game.phase == "over" and game.flight.position == final_position, "Match win freezes ball")
+	check(game.elapsed == final_clock and not game.player.moving, "Match win freezes simulation and stops running animation")
 	game.hud.refresh()
 	check(game.hud.overlay.visible and not game.hud.continue_button.visible, "Win screen must show restart instead of resume")
 	game.restart()
+	check(not game.player.moving and game.player.swing_time == 0 and game.player.animation_time == 0, "Restart clears actor movement, swing and animation clocks")
 	game.rules.server = 1
 	game.prepare_service()
 	game.request_swing()

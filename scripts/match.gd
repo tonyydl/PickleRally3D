@@ -97,6 +97,11 @@ func setup_audio() -> void:
 	audio.play()
 	audio_playback = audio.get_stream_playback()
 
+func _exit_tree() -> void:
+	if is_instance_valid(audio):
+		audio.stop()
+	audio_playback = null
+
 func sound(frequency: float, duration: float) -> void:
 	tone_frequency = frequency
 	tone_left = duration
@@ -120,6 +125,9 @@ func restart() -> void:
 	feedback = ""
 	feedback_time = 0
 	impact_time = 0
+	tone_left = 0
+	audio_phase = 0
+	camera.position.x = 0
 	prepare_service()
 	update_visuals(0)
 
@@ -127,9 +135,12 @@ func prepare_service() -> void:
 	phase = "ready"
 	phase_time = 0
 	flight.active = false
+	flight.velocity = Vector3.ZERO
 	swing_buffer = 0
 	shot_count = 0
 	ai_reaction_left = 0
+	player.reset_animation()
+	opponent.reset_animation()
 	player.position = Vector3(rules.service_x(0) if rules.server == 0 else -rules.service_x(1), 0, 7.15 if rules.server == 0 else 5.5)
 	opponent.position = Vector3(rules.service_x(1) if rules.server == 1 else -rules.service_x(0), 0, -7.15 if rules.server == 1 else -5.5)
 	flight.position = (player.position if rules.server == 0 else opponent.position) + Vector3(0, 0.72, -0.28 if rules.server == 0 else 0.28)
@@ -221,7 +232,7 @@ func chase_target(side: int) -> Vector3:
 	return point
 
 func simulate(delta: float) -> void:
-	if paused:
+	if paused or phase == "over":
 		return
 	elapsed += delta
 	phase_time += delta
@@ -276,6 +287,8 @@ func finish_rally() -> void:
 	flight.active = false
 	swing_buffer = 0
 	feedback_time = 0
+	player.reset_animation()
+	opponent.reset_animation()
 	sound(880 if rules.last_rally_winner == 0 else 180, 0.16)
 
 func _physics_process(delta: float) -> void:

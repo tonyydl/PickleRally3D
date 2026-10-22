@@ -25,7 +25,15 @@ func capture() -> void:
 	await process_frame
 	await RenderingServer.frame_post_draw
 	root.get_texture().get_image().save_png("res://.tools/visual/pause.png")
-	print("PASS: rendered ready/rally/pause screenshots")
+	game.set_paused(false)
+	game.rules.score = [10, 0]
+	game.rules.fault(1, "兩次彈地")
+	game.finish_rally()
+	game.hud.refresh()
+	await process_frame
+	await RenderingServer.frame_post_draw
+	root.get_texture().get_image().save_png("res://.tools/visual/win.png")
+	print("PASS: rendered ready/rally/pause/win screenshots")
 	game.free()
 	await process_frame
 	quit()

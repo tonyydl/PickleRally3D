@@ -13,7 +13,7 @@ var last_hitter := -1
 var hit_count := 0
 var bounce_count := 0
 var bounced_once: Array = [false, false]
-var volley_pending := -1
+var volley_pending: Array = [false, false]
 var result := ""
 var last_rally_winner := -1
 
@@ -26,7 +26,7 @@ func reset() -> void:
 	hit_count = 0
 	bounce_count = 0
 	bounced_once = [false, false]
-	volley_pending = -1
+	volley_pending = [false, false]
 	result = ""
 	last_rally_winner = -1
 
@@ -38,7 +38,7 @@ func begin_rally() -> void:
 	hit_count = 0
 	bounce_count = 0
 	bounced_once = [false, false]
-	volley_pending = -1
+	volley_pending = [false, false]
 	result = ""
 
 func service_x(side: int) -> float:
@@ -75,20 +75,21 @@ func hit(side: int, feet: Vector3) -> String:
 	if not reason.is_empty():
 		fault(side, reason)
 		return reason
-	volley_pending = side if last_hitter != -1 and bounce_count == 0 else -1
+	if last_hitter != -1 and bounce_count == 0:
+		volley_pending[side] = true
 	last_hitter = side
 	hit_count += 1
 	bounce_count = 0
 	return ""
 
 func check_kitchen(side: int, feet: Vector3) -> void:
-	if live and volley_pending == side and in_kitchen(feet):
+	if live and volley_pending[side] and in_kitchen(feet):
 		fault(side, "Kitchen 違例：截擊後踏入非截擊區")
 
 func bounce(point: Vector3) -> String:
 	if not live or last_hitter == -1:
 		return ""
-	volley_pending = -1
+	volley_pending = [false, false]
 	var landing_side := 0 if point.z > 0 else 1
 	var reason := ""
 	var loser := last_hitter

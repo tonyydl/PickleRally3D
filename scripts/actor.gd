@@ -62,6 +62,16 @@ func move_toward_point(target: Vector3, delta: float) -> void:
 func swing() -> void:
 	swing_time = 0.28
 
+func reset_animation() -> void:
+	moving = false
+	animation_time = 0
+	swing_time = 0
+	rig.position = Vector3.ZERO
+	for i in 2:
+		legs[i].rotation.x = 0
+		arms[i].rotation.x = 0
+		arms[i].rotation.z = 0.14 if i == 0 else -0.14
+
 func animate(delta: float) -> void:
 	animation_time += delta
 	swing_time = maxf(0, swing_time - delta)
