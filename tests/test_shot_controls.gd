@@ -106,8 +106,10 @@ func run() -> void:
 	check(game.rules.live and game.last_shot_kind == &"serve" and game.flight.landing().x < 0, "Shift+left during service must retain legal diagonal serve")
 	incoming(game, Vector3(0, 0, 4.2), Vector3(1.65, 1.1, 4.2), false)
 	game.request_swing(&"soft")
+	game.opponent.swing(&"smash")
 	game.set_paused(true)
 	check(game.pending_intent == &"" and game.swing_buffer == 0, "Pause must discard buffered shot intent")
+	check(game.player.swing_time == 0 and game.opponent.swing_time == 0 and game.player.swing_kind == &"drive" and game.opponent.swing_kind == &"drive", "Pause must discard both actors' swing animation state")
 	game.restart()
 	check(game.pending_intent == &"" and game.last_shot_kind == &"", "Restart must clear new shot state")
 	# AI uses the same shots and real movement, including lob retrieval.

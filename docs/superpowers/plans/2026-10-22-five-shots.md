@@ -23,19 +23,19 @@
 ### Task 1: Shot profiles and trajectories
 Files: scripts/shots.gd, tests/test_shots.gd.
 Interfaces: Shots.resolve(intent: StringName, feet: Vector3, origin: Vector3) -> StringName; Shots.build(intent, origin, feet, aim, side, service=false) -> Dictionary with kind/target/duration/reason; Shots.label_for(kind), color_for(kind).
-- [ ] Write failing tests: soft position threshold; Lob apex >4.5 m and deeper target; Dink/Drop land inside 2.1336 m; Drive faster horizontally than Drop; valid Smash starts downward; low Smash falls back; representative shots clear net and land on requested target.
-- [ ] Implement pure profile/arc solver. Run test_shots and existing flight suite.
+- [x] Write failing tests: soft position threshold; Lob apex >4.5 m and deeper target; Dink/Drop land inside 2.1336 m; Drive faster horizontally than Drop; valid Smash starts downward; low Smash falls back; representative shots clear net and land on requested target.
+- [x] Implement pure profile/arc solver. Run test_shots and existing flight suite.
 
 ### Task 2: Input, AI and rule integration
 Files: scripts/match.gd, tests/test_shot_controls.gd, tests/test_match.gd, tools/check_project.ps1.
 Interfaces: Match.request_swing(intent: StringName = &"drive"); Match.try_hit(side: int, aim: Vector2, intent: StringName = &"drive") -> bool. Expose last_shot_kind, last_shot_side and pending_intent to HUD.
-- [ ] Write failing input/integration tests for all direct controls, buffer capture, fallback, soft Kitchen groundstroke, illegal volley, AI choice and serve overrides.
-- [ ] Integrate shared shot construction and AI choices; keep movement/physics rules unchanged. Register new suites.
-- [ ] Run full validator, including long rally and placement-win regressions; adjust only tests whose assumptions legitimately changed.
+- [x] Write failing input/integration tests for all direct controls, buffer capture, fallback, soft Kitchen groundstroke, illegal volley, AI choice and serve overrides.
+- [x] Integrate shared shot construction and AI choices; keep movement/physics rules unchanged. Register new suites.
+- [x] Run full validator, including long rally and placement-win regressions; adjust only tests whose assumptions legitimately changed.
 
 ### Task 3: Presentation, docs and review
 Files: scripts/hud.gd, scripts/actor.gd, tools/capture.gd, README.md, docs/README.md, docs/progress-five-shots.md.
-- [ ] Add shot-specific compact/overhead animation, color/audio feedback, current right-click/Smash readiness and direct control legend.
-- [ ] Update README and document index; distinguish approved A mapping from implemented behavior.
-- [ ] Run full validation and actual GPU captures of ready/rally/Lob/soft/Smash/terminal UI; inspect and fix material defects.
-- [ ] Fresh code review; fix material findings with regressions, record evidence and preserve the feature branch locally.
+- [x] Add shot-specific compact/overhead animation, color/audio feedback, current right-click/Smash readiness and direct control legend.
+- [x] Update README and document index; distinguish approved A mapping from implemented behavior.
+- [x] Run full validation and actual GPU captures of ready/rally/Lob/soft/Smash/terminal UI; inspect and fix material defects.
+- [x] Fresh code review; fix material findings with regressions, record evidence and preserve the feature branch locally.

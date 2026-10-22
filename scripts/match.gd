@@ -151,6 +151,9 @@ func prepare_service() -> void:
 func set_paused(value: bool) -> void:
 	paused = value
 	clear_pending_shot()
+	if paused:
+		player.reset_animation()
+		opponent.reset_animation()
 	if paused and is_instance_valid(audio):
 		audio.stop()
 	if hud:
