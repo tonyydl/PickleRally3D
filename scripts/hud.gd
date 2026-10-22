@@ -4,6 +4,7 @@ extends CanvasLayer
 const INK := Color("173f42")
 const MUTED := Color("5b7e79")
 const PAPER := Color("f8f6e9")
+const Shots = preload("res://scripts/shots.gd")
 var game: Node3D
 var root: Control
 var score_label: Label
@@ -22,6 +23,9 @@ var overlay_title: Label
 var overlay_hint: Label
 var continue_button: Button
 var message_panel: Panel
+var soft_label: Label
+var smash_label: Label
+var last_shot_label: Label
 
 func style(color: Color, radius := 16) -> StyleBoxFlat:
 	var box := StyleBoxFlat.new()
@@ -108,23 +112,34 @@ func _ready() -> void:
 	rule_label = label(guide, "發球與接發球皆須先彈地\nKitchen 內可打落地球\n但不能截擊", Rect2(16, 72, 186, 68), 13, MUTED)
 	var legend := panel(root, Rect2(-220, 143, 196, 115), Color(0.97, 0.96, 0.90, 0.89), Vector2(1, 0))
 	label(legend, "球場提示", Rect2(16, 11, 166, 24), 16)
-	label(legend, "● 黃圈  球的預測落點\n○ 白圈  你的擊球目標\n■ 綠色區域  Kitchen", Rect2(16, 42, 170, 61), 12, MUTED)
-	shot_label = label(root, "", Rect2(0, 0, 300, 32), 19, INK, true)
+	label(legend, "● 黃圈  球的預測落點\n○ 彩圈  你的擊球目標\n■ 綠色區域  Kitchen", Rect2(16, 42, 170, 61), 12, MUTED)
+	var selection := panel(root, Rect2(-220, 278, 196, 201), PAPER, Vector2(1, 0))
+	label(selection, "右鍵目前打法", Rect2(16, 10, 164, 22), 12, MUTED)
+	soft_label = label(selection, "Drop 放短球", Rect2(16, 34, 164, 29), 19)
+	label(selection, "靠近網前會切換為 Dink", Rect2(16, 68, 164, 21), 11, MUTED)
+	smash_label = label(selection, "扣殺：等待高球", Rect2(16, 98, 164, 24), 13, MUTED)
+	label(selection, "最近擊球", Rect2(16, 136, 164, 20), 11, MUTED)
+	last_shot_label = label(selection, "—", Rect2(16, 162, 164, 26), 15)
+	shot_label = label(root, "", Rect2(0, 0, 480, 32), 18, INK, true)
 	shot_label.anchor_left = 0.5
 	shot_label.anchor_right = 0.5
-	shot_label.offset_left = -150
-	shot_label.offset_right = 150
+	shot_label.offset_left = -240
+	shot_label.offset_right = 240
 	shot_label.offset_top = 142
 	shot_label.offset_bottom = 174
 	var footer := panel(root, Rect2(24, -88, 1232, 64), PAPER, Vector2(0, 1))
 	footer.anchor_right = 1
 	footer.offset_right = -24
-	label(footer, "W A S D", Rect2(18, 8, 100, 23), 17)
-	label(footer, "移動 / 擊球時瞄準", Rect2(18, 34, 178, 18), 12, MUTED)
-	label(footer, "滑鼠左鍵", Rect2(205, 8, 126, 23), 17)
-	label(footer, "發球 / 揮拍 / 下一回合", Rect2(205, 34, 210, 18), 12, MUTED)
-	label(footer, "A D 左右 · W 深球 · S 短球", Rect2(440, 11, 330, 22), 14)
-	label(footer, "不按方向鍵，安全打向中央", Rect2(440, 35, 330, 17), 12, MUTED)
+	label(footer, "W A S D", Rect2(18, 8, 120, 23), 16)
+	label(footer, "移動 / 觸球時瞄準", Rect2(18, 34, 135, 18), 11, MUTED)
+	label(footer, "左鍵", Rect2(170, 8, 130, 23), 16)
+	label(footer, "Drive / 發球 / 繼續", Rect2(170, 34, 140, 18), 11, MUTED)
+	label(footer, "右鍵", Rect2(331, 8, 145, 23), 16)
+	label(footer, "Dink / Drop", Rect2(331, 34, 145, 18), 12, MUTED)
+	label(footer, "Space", Rect2(500, 8, 115, 23), 16)
+	label(footer, "Lob 高吊球", Rect2(500, 34, 115, 18), 12, MUTED)
+	label(footer, "Shift + 左鍵", Rect2(650, 8, 200, 23), 16)
+	label(footer, "Smash 扣殺 · 高球限定", Rect2(650, 34, 220, 18), 11, MUTED)
 	pause_button = button(footer, "暫停  Esc", Rect2(902, 11, 130, 42), func(): game.set_paused(not game.paused))
 	pause_button.anchor_left = 1
 	pause_button.anchor_right = 1
@@ -155,6 +170,12 @@ func refresh() -> void:
 	rally_label.text = "%02d" % game.shot_count
 	best_label.text = "最佳 %02d" % game.best_rally
 	shot_label.text = game.feedback if game.feedback_time > 0 and game.phase == "rally" else ""
+	var soft_kind: StringName = Shots.resolve(&"soft", game.player.position, game.flight.position)
+	soft_label.text = Shots.label_for(soft_kind)
+	soft_label.add_theme_color_override("font_color", Shots.color_for(soft_kind).darkened(0.5))
+	smash_label.text = "扣殺：高球可進攻！" if game.smash_available() else "扣殺：等待可及高球"
+	smash_label.add_theme_color_override("font_color", Color("9b583b") if game.smash_available() else MUTED)
+	last_shot_label.text = "—" if game.last_shot_kind.is_empty() else ("你 · " if game.last_shot_side == 0 else "AI · ") + Shots.label_for(game.last_shot_kind)
 	message_panel.visible = not game.paused and game.phase != "over"
 	if game.phase == "ready":
 		title_label.text = "你的發球" if r.server == 0 else "準備接 AI 發球"
@@ -170,7 +191,7 @@ func refresh() -> void:
 	else:
 		var incoming: bool = r.last_hitter == 1
 		var required: bool = incoming and not r.bounced_once[0]
-		title_label.text = "等球落地再回擊" if required else ("靠近球，左鍵擊球" if incoming else "漂亮！回到場中央")
+		title_label.text = "等球落地再回擊" if required else ("靠近球，選擇你的球路" if incoming else "漂亮！準備下一拍")
 		hint_label.text = "發球後的首次接球，雙方都必須先讓球彈地" if required else "Kitchen 內僅可擊打落地球" if Rules_kitchen() else "按 A / D 控制左右，W 打深球，S 打短球"
 	overlay.visible = game.paused or game.phase == "over"
 	pause_button.text = "繼續  Esc" if game.paused else "暫停  Esc"

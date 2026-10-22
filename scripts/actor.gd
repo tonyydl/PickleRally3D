@@ -12,6 +12,8 @@ var arms: Array[Node3D] = []
 var animation_time := 0.0
 var swing_time := 0.0
 var moving := false
+var swing_kind: StringName = &"drive"
+var swing_duration := 0.28
 
 func _ready() -> void:
 	rig = Node3D.new()
@@ -59,14 +61,19 @@ func move_toward_point(target: Vector3, delta: float) -> void:
 	var direction := Vector2(target.x - position.x, target.z - position.z)
 	move_input(direction.normalized() * minf(1, direction.length() / maxf(SPEED * delta, 0.001)), delta)
 
-func swing() -> void:
-	swing_time = 0.28
+func swing(kind: StringName = &"drive") -> void:
+	swing_kind = kind
+	swing_duration = 0.38 if kind == &"smash" else 0.34 if kind == &"lob" else 0.24 if kind in [&"dink", &"drop"] else 0.28
+	swing_time = swing_duration
 
 func reset_animation() -> void:
 	moving = false
 	animation_time = 0
 	swing_time = 0
+	swing_kind = &"drive"
+	swing_duration = 0.28
 	rig.position = Vector3.ZERO
+	rig.rotation = Vector3.ZERO
 	for i in 2:
 		legs[i].rotation.x = 0
 		arms[i].rotation.x = 0
@@ -79,8 +86,17 @@ func animate(delta: float) -> void:
 		legs[i].rotation.x = sin(animation_time * 15 + i * PI) * 0.48 if moving else lerpf(legs[i].rotation.x, 0, 0.2)
 		arms[i].rotation.x = -legs[i].rotation.x * 0.5
 	if swing_time > 0:
-		arms[1].rotation.x = -sin((1 - swing_time / 0.28) * PI) * 2.3
-		arms[1].rotation.z = -sin((1 - swing_time / 0.28) * PI) * 0.7
+		var progress := 1 - swing_time / swing_duration
+		var sweep := sin(progress * PI)
+		if swing_kind == &"smash":
+			arms[1].rotation.x = lerpf(-2.7, 0.7, progress)
+			arms[1].rotation.z = -sweep * 0.35
+		elif swing_kind in [&"dink", &"drop"]:
+			arms[1].rotation.x = -sweep * 0.65
+			arms[1].rotation.z = -sweep * 0.2
+		else:
+			arms[1].rotation.x = -sweep * (1.45 if swing_kind == &"lob" else 2.3)
+			arms[1].rotation.z = -sweep * 0.7
 	else:
 		arms[1].rotation.z = -0.14
 	rig.position.y = absf(sin(animation_time * 15)) * 0.035 if moving else 0.0

@@ -4,6 +4,7 @@ const Court = preload("res://scripts/court.gd")
 const Actor = preload("res://scripts/actor.gd")
 const Flight = preload("res://scripts/flight.gd")
 const Rules = preload("res://scripts/rules.gd")
+const Shots = preload("res://scripts/shots.gd")
 var flight: Flight = Flight.new()
 var rules: Rules = Rules.new()
 var player: Node3D
@@ -28,11 +29,10 @@ var feedback := ""
 var input_direction := Vector2.ZERO
 var hud: CanvasLayer
 var audio: AudioStreamPlayer
-var audio_playback: AudioStreamGeneratorPlayback
-var audio_phase := 0.0
-var tone_left := 0.0
-var tone_frequency := 500.0
 var ai_reaction_left := 0.0
+var pending_intent: StringName = &""
+var last_shot_kind: StringName = &""
+var last_shot_side := -1
 
 func _ready() -> void:
 	for entry in [["left", KEY_A], ["right", KEY_D], ["forward", KEY_W], ["back", KEY_S]]:
@@ -88,34 +88,32 @@ func setup_audio() -> void:
 	if DisplayServer.get_name() == "headless":
 		return
 	audio = AudioStreamPlayer.new()
-	var generator := AudioStreamGenerator.new()
-	generator.mix_rate = 22050
-	generator.buffer_length = 0.12
-	audio.stream = generator
 	audio.volume_db = -9
 	add_child(audio)
-	audio.play()
-	audio_playback = audio.get_stream_playback()
 
 func _exit_tree() -> void:
 	if is_instance_valid(audio):
 		audio.stop()
-	audio_playback = null
+		audio.stream = null
 
 func sound(frequency: float, duration: float) -> void:
-	tone_frequency = frequency
-	tone_left = duration
-
-func fill_audio() -> void:
-	if audio_playback == null:
+	if not is_instance_valid(audio) or paused:
 		return
-	for i in audio_playback.get_frames_available():
-		var sample := 0.0
-		if tone_left > 0 and not paused:
-			audio_phase += TAU * tone_frequency / 22050.0
-			sample = sin(audio_phase) * minf(1, tone_left * 40) * 0.45
-			tone_left -= 1.0 / 22050
-		audio_playback.push_frame(Vector2(sample, sample))
+	# Short PCM clips retain procedural feedback without a permanently running stream.
+	var mix_rate := 22050
+	var frames := int(duration * mix_rate)
+	var samples := PackedByteArray()
+	samples.resize(frames * 2)
+	for i in frames:
+		var envelope := minf(1, i / (mix_rate * 0.003)) * minf(1, (frames - i) / (mix_rate * 0.025))
+		var sample := sin(TAU * frequency * i / mix_rate) * envelope * 0.45
+		samples.encode_s16(i * 2, int(sample * 32767))
+	var clip := AudioStreamWAV.new()
+	clip.format = AudioStreamWAV.FORMAT_16_BITS
+	clip.mix_rate = mix_rate
+	clip.data = samples
+	audio.stream = clip
+	audio.play()
 
 func restart() -> void:
 	rules.reset()
@@ -123,10 +121,12 @@ func restart() -> void:
 	paused = false
 	elapsed = 0
 	feedback = ""
+	last_shot_kind = &""
+	last_shot_side = -1
 	feedback_time = 0
 	impact_time = 0
-	tone_left = 0
-	audio_phase = 0
+	if is_instance_valid(audio):
+		audio.stop()
 	camera.position.x = 0
 	prepare_service()
 	update_visuals(0)
@@ -136,7 +136,7 @@ func prepare_service() -> void:
 	phase_time = 0
 	flight.active = false
 	flight.velocity = Vector3.ZERO
-	swing_buffer = 0
+	clear_pending_shot()
 	shot_count = 0
 	ai_reaction_left = 0
 	player.reset_animation()
@@ -150,12 +150,20 @@ func prepare_service() -> void:
 
 func set_paused(value: bool) -> void:
 	paused = value
-	swing_buffer = 0
+	clear_pending_shot()
+	if paused and is_instance_valid(audio):
+		audio.stop()
 	if hud:
 		hud.refresh()
 
-func request_swing() -> void:
+func clear_pending_shot() -> void:
+	swing_buffer = 0
+	pending_intent = &""
+
+func request_swing(intent: StringName = &"drive") -> void:
 	if paused or phase == "over":
+		return
+	if phase != "rally" and intent not in [&"drive", &"smash"]:
 		return
 	if phase == "result":
 		if phase_time < 0.65:
@@ -163,30 +171,37 @@ func request_swing() -> void:
 		prepare_service()
 	if phase == "ready":
 		if rules.server == 0:
-			try_hit(0, input_direction)
+			try_hit(0, input_direction, intent)
 		else:
 			phase = "ai_serve"
 			phase_time = 0
 	elif phase == "rally":
 		swing_buffer = 0.3
-		if try_hit(0, input_direction):
-			swing_buffer = 0
+		pending_intent = intent
+		if try_hit(0, input_direction, intent):
+			clear_pending_shot()
 		else:
-			player.swing()
+			player.swing(Shots.resolve(intent, player.position, flight.position))
 			feedback = "揮拍準備 · 靠近黃色落點"
 			feedback_time = 0.5
 
-func aim_target(side: int, aim: Vector2, service: bool) -> Vector3:
-	var facing := -1.0 if side == 0 else 1.0
-	if service:
-		return Vector3(-rules.service_x(side), Flight.RADIUS, facing * 4.9)
-	return Vector3(clampf(aim.x * 2.25, -2.5, 2.5), Flight.RADIUS, facing * clampf(4.4 - aim.y * 2.5, 0.9, 6.05))
+func preview_intent() -> StringName:
+	if not pending_intent.is_empty():
+		return pending_intent
+	if Input.is_physical_key_pressed(KEY_SPACE):
+		return &"lob"
+	if Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
+		return &"soft"
+	return &"smash" if Input.is_physical_key_pressed(KEY_SHIFT) else &"drive"
 
-func try_hit(side: int, aim: Vector2) -> bool:
+func try_hit(side: int, aim: Vector2, intent: StringName = &"drive") -> bool:
 	if paused or phase == "over" or phase == "result":
 		return false
 	var actor: Node3D = player if side == 0 else opponent
 	var service := phase == "ready" or phase == "ai_serve"
+	var origin: Vector3 = actor.position + Vector3(0.42, 0.72, -0.28 if side == 0 else 0.28) if service else flight.position
+	var shot: Dictionary = Shots.build(intent, origin, actor.position, aim, side, service)
+	var kind: StringName = shot.kind
 	if service:
 		if side != rules.server:
 			return false
@@ -200,28 +215,55 @@ func try_hit(side: int, aim: Vector2) -> bool:
 		# AI must get behind the incoming ball; it cannot return balls past its body.
 		if side == 1 and (offset.length() > 0.95 or offset.y < -0.2):
 			return false
-		if offset.length() > 1.3 or flight.position.y < 0.15 or flight.position.y > 2.35:
+		var reach_height := 3.0 if kind == &"smash" else 2.35
+		if offset.length() > 1.3 or flight.position.y < 0.15 or flight.position.y > reach_height:
 			return false
 	var volley: bool = not service and rules.bounce_count == 0
 	var error: String = rules.hit(side, actor.position)
-	actor.swing()
+	actor.swing(kind)
 	if not error.is_empty():
 		finish_rally()
 		return true
-	var origin: Vector3 = actor.position + Vector3(0.42, 0.72, -0.28 if rules.server == 0 else 0.28) if service else flight.position
-	var target := aim_target(side, aim, service)
-	flight.launch(origin, target, Flight.duration_for(origin, target, volley))
+	flight.launch(origin, shot.target, shot.duration)
 	phase = "rally"
 	shot_count += 1
+	last_shot_kind = kind
+	last_shot_side = side
 	if side == 0:
 		ai_reaction_left = 0.24
 	best_rally = maxi(best_rally, shot_count)
-	feedback = "發球" if service else ("截擊！" if volley else "漂亮抽球！")
+	feedback = ("你：" if side == 0 else "AI：") + Shots.label_for(kind)
+	if not shot.reason.is_empty():
+		feedback += " · " + shot.reason
+	elif volley:
+		feedback += " · 截擊"
 	feedback_time = 0.7
 	impact.position = Vector3(origin.x, 0.075, origin.z)
 	impact_time = 0.22
-	sound(720 if volley else 540, 0.065)
+	(impact.material_override as StandardMaterial3D).albedo_color = Shots.color_for(kind)
+	var frequency: float = {&"drive": 540.0, &"dink": 380.0, &"drop": 430.0, &"lob": 640.0, &"smash": 880.0, &"serve": 500.0}[kind]
+	sound(frequency, 0.1 if kind == &"smash" else 0.065)
 	return true
+
+func choose_ai_intent() -> StringName:
+	if rules.can_volley(1) and not Rules.in_kitchen(opponent.position) and flight.position.y >= Shots.SMASH_HEIGHT - 0.00001:
+		return &"smash"
+	if absf(player.position.z) < 3.3 and shot_count % 6 == 5:
+		return &"lob"
+	if absf(opponent.position.z) <= Shots.SOFT_DISTANCE and (last_shot_kind in [&"dink", &"drop"] or absf(player.position.z) > 5):
+		return &"soft"
+	return &"drive"
+
+func smash_available() -> bool:
+	if phase != "rally" or paused or rules.last_hitter != 1 or not rules.bounced_once[0]:
+		return false
+	if flight.position.z <= 0 or flight.position.y < Shots.SMASH_HEIGHT - 0.00001 or flight.position.y > 3.0:
+		return false
+	if Vector2(flight.position.x - player.position.x, flight.position.z - player.position.z).length() > 1.3:
+		return false
+	if rules.bounce_count == 0 and Rules.in_kitchen(player.position):
+		return false
+	return Shots.build(&"smash", flight.position, player.position, input_direction, 0).kind == &"smash"
 
 func chase_target(side: int) -> Vector3:
 	var point: Vector3 = flight.landing() if rules.bounce_count == 0 else flight.position
@@ -271,21 +313,25 @@ func simulate(delta: float) -> void:
 		ai_reaction_left = maxf(0, ai_reaction_left - delta)
 		if ai_reaction_left <= 0:
 			opponent.move_toward_point(chase_target(1), delta * 0.4)
-		if rules.bounce_count > 0 and ai_reaction_left <= 0:
+		var ai_intent := choose_ai_intent()
+		var ai_volley := ai_intent == &"smash" and rules.can_volley(1) and not Rules.in_kitchen(opponent.position)
+		if (rules.bounce_count > 0 or ai_volley) and ai_reaction_left <= 0:
 			var ai_aim := Vector2(sin(shot_count * 1.3) * 0.45, 0.12)
-			try_hit(1, ai_aim)
+			try_hit(1, ai_aim, ai_intent)
 	else:
 		opponent.move_toward_point(Vector3(0, 0, -4.4), delta * 0.48)
 	if swing_buffer > 0:
 		swing_buffer = maxf(0, swing_buffer - delta)
-		if try_hit(0, input_direction):
-			swing_buffer = 0
+		if try_hit(0, input_direction, pending_intent):
+			clear_pending_shot()
+		elif swing_buffer <= 0:
+			clear_pending_shot()
 
 func finish_rally() -> void:
 	phase = "over" if rules.winner != -1 else "result"
 	phase_time = 0
 	flight.active = false
-	swing_buffer = 0
+	clear_pending_shot()
 	feedback_time = 0
 	player.reset_animation()
 	opponent.reset_animation()
@@ -297,7 +343,6 @@ func _physics_process(delta: float) -> void:
 		player.move_input(input_direction, delta)
 	simulate(delta)
 	update_visuals(delta)
-	fill_audio()
 	if hud:
 		hud.refresh()
 
@@ -312,7 +357,9 @@ func update_visuals(delta: float) -> void:
 		landing_marker.position = flight.landing() + Vector3.UP * 0.028
 		landing_marker.scale = Vector3.ONE * (1 + sin(elapsed * 8) * 0.1)
 	aim_marker.visible = (phase == "rally" or phase == "ready") and not paused
-	aim_marker.position = aim_target(0, input_direction, phase == "ready") + Vector3.UP * 0.022
+	var preview: Dictionary = Shots.build(preview_intent(), flight.position, player.position, input_direction, 0, phase == "ready")
+	aim_marker.position = preview.target + Vector3.UP * 0.022
+	(aim_marker.material_override as StandardMaterial3D).albedo_color = Shots.color_for(preview.kind)
 	impact.visible = impact_time > 0
 	impact.scale = Vector3.ONE * (1 + (0.28 - impact_time) * 8)
 	for i in range(trail.size() - 1, -1, -1):
@@ -327,5 +374,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			restart()
 		elif event.physical_keycode == KEY_ESCAPE:
 			set_paused(not paused)
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-		request_swing()
+		elif event.physical_keycode == KEY_SPACE:
+			input_direction = Input.get_vector("left", "right", "forward", "back")
+			request_swing(&"lob")
+	if event is InputEventMouseButton and event.pressed:
+		input_direction = Input.get_vector("left", "right", "forward", "back")
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			request_swing(&"smash" if event.shift_pressed else &"drive")
+		elif event.button_index == MOUSE_BUTTON_RIGHT:
+			request_swing(&"soft")
