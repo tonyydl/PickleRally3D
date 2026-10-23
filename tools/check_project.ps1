@@ -19,7 +19,7 @@ function Invoke-Check([string]$Name, [string[]]$GodotArguments, [bool]$RequirePa
 }
 
 Invoke-Check 'import' @('--editor', '--quit')
-foreach ($test in @('flight', 'rules', 'shots', 'match', 'controls', 'shot_controls')) {
+foreach ($test in @('flight', 'rules', 'shots', 'match', 'controls', 'shot_controls', 'web_performance')) {
     Invoke-Check $test @('--script', "res://tests/test_$test.gd") $true
 }
 Invoke-Check 'startup' @('--quit-after', '30')

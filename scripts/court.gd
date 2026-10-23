@@ -5,6 +5,8 @@ const HALF_WIDTH := 3.048
 const HALF_LENGTH := 6.7056
 const KITCHEN := 2.1336
 const LINE := 0.0508
+var sun: DirectionalLight3D
+var decor: Node3D
 
 static func material(color: Color, unshaded := false) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
@@ -79,16 +81,19 @@ func _ready() -> void:
 		var h := lerpf(0.8636, 0.9144, absf(x) / HALF_WIDTH)
 		box(self, Vector3(x, h - 0.018, 0), Vector3(0.265, 0.036, 0.045), white)
 	# Open, bright club setting with simple benches and faceted trees.
+	decor = Node3D.new()
+	decor.name = "Decor"
+	add_child(decor)
 	for side in [-1, 1]:
 		for z in [-5.0, 3.8]:
-			box(self, Vector3(side * 6.4, 0.45, z), Vector3(0.65, 0.13, 2.2), Color("c9a47c"))
-			box(self, Vector3(side * 6.7, 0.8, z), Vector3(0.1, 0.55, 2.2), Color("c9a47c"))
+			box(decor, Vector3(side * 6.4, 0.45, z), Vector3(0.65, 0.13, 2.2), Color("c9a47c"))
+			box(decor, Vector3(side * 6.7, 0.8, z), Vector3(0.1, 0.55, 2.2), Color("c9a47c"))
 			for dz in [-0.75, 0.75]:
-				box(self, Vector3(side * 6.4, 0.2, z + dz), Vector3(0.5, 0.4, 0.08), dark)
+				box(decor, Vector3(side * 6.4, 0.2, z + dz), Vector3(0.5, 0.4, 0.08), dark)
 		for z in [-10.0, -3.0, 6.0, 12.0]:
 			var x: float = side * (9.1 + fmod(absf(z), 2))
-			cylinder(self, Vector3(x, 0.7, z), 0.16, 1.4, Color("a58c67"), 6)
-			var tree := cylinder(self, Vector3(x, 2.3, z), 1.25, 2.8, Color("75a77c"), 7)
+			cylinder(decor, Vector3(x, 0.7, z), 0.16, 1.4, Color("a58c67"), 6)
+			var tree := cylinder(decor, Vector3(x, 2.3, z), 1.25, 2.8, Color("75a77c"), 7)
 			(tree.mesh as CylinderMesh).top_radius = 0.05
 	for z in [-11.0, 11.0]:
 		box(self, Vector3(0, 0.19, z), Vector3(16, 0.38, 0.5), Color("a1bda4"))
@@ -102,10 +107,14 @@ func _ready() -> void:
 	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
 	environment.environment = env
 	add_child(environment)
-	var sun := DirectionalLight3D.new()
+	sun = DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-53, -28, 0)
 	sun.light_color = Color("fff5dc")
 	sun.light_energy = 0.8
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 45
 	add_child(sun)
+
+func set_low_detail(enabled: bool) -> void:
+	sun.shadow_enabled = not enabled
+	decor.visible = not enabled

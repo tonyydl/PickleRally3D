@@ -85,6 +85,7 @@ func _ready() -> void:
 	var theme := Theme.new()
 	var font := SystemFont.new()
 	font.font_names = PackedStringArray(["Microsoft JhengHei UI", "Microsoft JhengHei", "Noto Sans CJK TC", "sans-serif"])
+	font.fallbacks = [preload("res://assets/fonts/noto_sans_tc_regular.tres")]
 	theme.default_font = font
 	root.theme = theme
 	var brand := panel(root, Rect2(24, 24, 255, 94), Color(0.97, 0.96, 0.90, 0.94))

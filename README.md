@@ -1,6 +1,6 @@
 # Pickle Rally 3D
 
-Windows 優先、明亮低多邊形的 3D 匹克球單打原型。使用 **Godot 4.7.2 stable**、GDScript、Compatibility 渲染器；所有模型與音效由程式產生，不需下載素材。`MyFirstGame` 是另一個既有專案，本遊戲位於獨立資料夾。
+Windows 優先、明亮低多邊形的 3D 匹克球單打原型。使用 **Godot 4.7.2 stable**、GDScript、Compatibility 渲染器；所有模型與音效由程式產生。內附 Noto Sans TC 備援字型，讓網頁版與不同電腦能顯示中文。`MyFirstGame` 是另一個既有專案，本遊戲位於獨立資料夾。
 
 ## 啟動
 
@@ -9,6 +9,23 @@ Windows 優先、明亮低多邊形的 3D 匹克球單打原型。使用 **Godot
 ```powershell
 godot --path C:\Users\Tony\GameDev\PickleRally3D
 ```
+
+## 打包與分享
+
+安裝與編輯器相同版本的 Godot 匯出模板後，在專案根目錄執行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/export_project.ps1
+# 只匯出其中一種：加上 -Target Windows 或 -Target Web
+```
+
+- Windows：`builds/windows/PickleRally3D.exe`，資料已嵌入 EXE；分享 `builds/PickleRally3D-windows.zip`，解壓後雙擊執行，玩家不需安裝 Godot。
+- 網頁：`builds/web/index.html` 及其配套檔案；分享／上傳 `builds/PickleRally3D-web.zip`。使用桌面瀏覽器、鍵盤與滑鼠。
+- 本機預覽網頁：`python -m http.server 8060 --bind 127.0.0.1 --directory builds/web`，開啟 <http://127.0.0.1:8060/>；不能直接雙擊 HTML 執行。
+
+網頁版若在啟動時辨識到 SwiftShader 等軟體繪圖器，會立即關閉即時陰影並隱藏場邊裝飾；若瀏覽器未提供繪圖器資訊，遊戲視窗有焦點且連續 2 秒低於 25 FPS 時也會自動切換。流暢時維持原有畫質；重新載入網頁會重新判斷。此模式減少繪圖負擔，但軟體繪圖的效能仍依瀏覽器與電腦而異。
+
+完整步驟、模板位置與授權來源見 [匯出說明](docs/export.md)。產物放在 Git 忽略的 `builds/`；匯出設定與腳本保留在版本控制。
 
 ## 操作與第一場比賽
 

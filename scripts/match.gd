@@ -5,8 +5,14 @@ const Actor = preload("res://scripts/actor.gd")
 const Flight = preload("res://scripts/flight.gd")
 const Rules = preload("res://scripts/rules.gd")
 const Shots = preload("res://scripts/shots.gd")
+const PERFORMANCE_SAMPLE_MS := 2000
+const LOW_FPS_THRESHOLD := 25.0
 var flight: Flight = Flight.new()
 var rules: Rules = Rules.new()
+var court: Node3D
+var low_detail := false
+var performance_start_ms := -1
+var performance_start_frames := 0
 var player: Node3D
 var opponent: Node3D
 var ball: MeshInstance3D
@@ -41,7 +47,8 @@ func _ready() -> void:
 			var key := InputEventKey.new()
 			key.physical_keycode = entry[1]
 			InputMap.action_add_event(entry[0], key)
-	add_child(Court.new())
+	court = Court.new()
+	add_child(court)
 	player = Actor.new()
 	player.shirt = Color("f6e9bc")
 	add_child(player)
@@ -83,6 +90,41 @@ func _ready() -> void:
 		hud.game = self
 		add_child(hud)
 	restart()
+	if OS.has_feature("web"):
+		var adapter_name: Variant = JavaScriptBridge.eval("(() => { const canvas = document.getElementById('canvas'); const gl = canvas?.getContext('webgl2'); const info = gl?.getExtension('WEBGL_debug_renderer_info'); return info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : ''; })()")
+		if adapter_name is String:
+			check_software_adapter(adapter_name)
+
+func check_software_adapter(adapter_name: String) -> void:
+	var name := adapter_name.to_lower()
+	if "swiftshader" in name or "basic render driver" in name or "llvmpipe" in name:
+		low_detail = true
+		court.set_low_detail(true)
+
+func _process(_delta: float) -> void:
+	if OS.has_feature("web") and not low_detail:
+		check_performance(Time.get_ticks_msec(), Engine.get_frames_drawn(), not paused and DisplayServer.window_is_focused())
+
+func check_performance(now_ms: int, frames_drawn: int, active: bool) -> void:
+	if low_detail:
+		return
+	if not active:
+		performance_start_ms = -1
+		return
+	if performance_start_ms < 0 or now_ms < performance_start_ms or frames_drawn < performance_start_frames:
+		performance_start_ms = now_ms
+		performance_start_frames = frames_drawn
+		return
+	var elapsed_ms := now_ms - performance_start_ms
+	if elapsed_ms < PERFORMANCE_SAMPLE_MS:
+		return
+	var fps := (frames_drawn - performance_start_frames) * 1000.0 / elapsed_ms
+	if fps < LOW_FPS_THRESHOLD:
+		low_detail = true
+		court.set_low_detail(true)
+	else:
+		performance_start_ms = now_ms
+		performance_start_frames = frames_drawn
 
 func setup_audio() -> void:
 	if DisplayServer.get_name() == "headless":
